@@ -268,17 +268,17 @@ import json
 import base64
 import logging
 import csv
-import numpy as np
-import cv2
-
 from datetime import date, datetime, time
 from django.http import JsonResponse, StreamingHttpResponse
 from django.conf import settings
-
-from insightface.app import FaceAnalysis
 from .models import Attendance
 
 logger = logging.getLogger(__name__)
+
+if ML_AVAILABLE:
+    import numpy as np
+    import cv2
+    from insightface.app import FaceAnalysis
 
 # =====================================================
 # CONFIG

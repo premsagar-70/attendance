@@ -308,12 +308,6 @@ def get_current_period():
     return None
 
 # =====================================================
-# LOAD ARCFACE MODEL
-# =====================================================
-face_app = FaceAnalysis(name="buffalo_l")
-face_app.prepare(ctx_id=0, det_size=(1024, 1024))
-
-# =====================================================
 # LOAD REGISTERED EMBEDDINGS FROM DB
 # =====================================================
 def load_known_faces():

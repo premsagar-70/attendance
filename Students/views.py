@@ -6,26 +6,30 @@ from django.contrib import messages
 import os
 from .models import Attendance, UserProfile  # Adjust based on your app's models
 import os
-import cv2
-import numpy as np
-import shutil  # For cleanup
+import shutil
 from django.shortcuts import render
 from django.contrib import messages
 from django.conf import settings
-from django.db import transaction  # Important for atomicity
+from django.db import transaction
 from django.http import JsonResponse
-
-from insightface.app import FaceAnalysis
 from .models import UserProfile
 
-# ==========================================
-# LOAD ARCFACE MODEL (ONCE)
-# ==========================================
-face_app = FaceAnalysis(name="buffalo_l")
-face_app.prepare(ctx_id=0, det_size=(1024, 1024))
+try:
+    import cv2
+    import numpy as np
+    from insightface.app import FaceAnalysis
 
-EMBEDDING_DIR = os.path.join(settings.BASE_DIR, "embeddings")
-os.makedirs(EMBEDDING_DIR, exist_ok=True)
+    # ==========================================
+    # LOAD ARCFACE MODEL (ONCE)
+    # ==========================================
+    face_app = FaceAnalysis(name="buffalo_l")
+    face_app.prepare(ctx_id=0, det_size=(1024, 1024))
+    ML_AVAILABLE = True
+except ImportError:
+    ML_AVAILABLE = False
+    face_app = None
+
+from django.views.decorators.csrf import csrf_exempt
 
 
 from django.views.decorators.csrf import csrf_exempt
@@ -35,6 +39,9 @@ from django.views.decorators.csrf import csrf_exempt
 # ==========================================
 @csrf_exempt
 def student_register(request):
+    if not ML_AVAILABLE:
+        return JsonResponse({"error": "Registration endpoint requires ML dependencies on local server."}, status=501)
+    
     if request.method == "POST":
         # Temporary storage for cleanup
         created_user = None
@@ -312,8 +319,10 @@ face_app.prepare(ctx_id=0, det_size=(1024, 1024))
 def load_known_faces():
     """Returns a dict mapping student_id to (numpy_embedding_array, UserProfile)"""
     known = {}
+    if not ML_AVAILABLE:
+        return known
+        
     users_with_faces = UserProfile.objects.exclude(face_embedding__isnull=True)
-    
     for user in users_with_faces:
         if user.face_embedding:
             # Convert JSON list back to numpy array
@@ -326,6 +335,8 @@ KNOWN_FACES = load_known_faces()
 # COSINE DISTANCE
 # =====================================================
 def cosine_distance(a, b):
+    if not ML_AVAILABLE:
+        return 1.0
     return 1 - np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 # =====================================================
@@ -333,6 +344,8 @@ def cosine_distance(a, b):
 # =====================================================
 def init_live_capture():
     global live_cap
+    if not ML_AVAILABLE:
+        return
     if live_cap is None or not live_cap.isOpened():
         live_cap = cv2.VideoCapture(0)
         if not live_cap.isOpened():
@@ -473,6 +486,9 @@ def realtime(request):
 # =====================================================
 @csrf_exempt
 def auto_attendance(request):
+    if not ML_AVAILABLE:
+        return JsonResponse({"error": "Auto Attendance endpoint requires ML dependencies on local server."}, status=501)
+
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request"}, status=400)
 
